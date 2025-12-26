@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMONA Telecoms-Trainer 101 - Image Based</title>
+    <style>
+        /* Base styles for responsive layout */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #2a2a2a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            padding: 10px;
+            color: #eee;
+        }
+
+        .main-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 1920px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .trainer-container {
+            position: relative;
+            width: 100%;
+            /* Max width based on original image */
+            margin: 0 auto;
+            flex-shrink: 1;
+            min-width: 300px;
+        }
+
+        /* This ensures the container maintains aspect ratio */
+        .trainer-container::before {
+            content: '';
+            display: block;
+            padding-top: 56.25%;
+            /* Adjust based on your image aspect ratio (height/width * 100) */
+        }
+
+        .board-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            border-radius: 8px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .port-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .port {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            /* Center the port on coordinates */
+        }
+
+        /* Yellow center dot - only visual indicator */
+        .port::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #ffeb3b;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 5px rgba(255, 235, 59, 0.8);
+        }
+
+        /* NO TEXT LABELS - Remove ::after completely */
+
+        .port:hover {
+            background: rgba(255, 235, 59, 0.3);
+            border: 2px solid #ffeb3b;
+            transform: translate(-50%, -50%) scale(1.3);
+            box-shadow: 0 0 15px rgba(255, 235, 59, 0.8);
+        }
+
+        .port.selected {
+            background: rgba(255, 235, 59, 0.6);
+            border: 3px solid #ffeb3b;
+            transform: translate(-50%, -50%) scale(1.4);
+            box-shadow: 0 0 20px #ffeb3b;
+            animation: pulse 1s infinite;
+        }
+
+        .port.connected {
+            background: rgba(76, 175, 80, 0.5);
+            border: 2px solid #4caf50;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px #ffeb3b;
+            }
+
+            50% {
+                box-shadow: 0 0 30px #ffeb3b, 0 0 40px rgba(255, 235, 59, 0.5);
+            }
+        }
+
+        .wire-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .wire-line {
+            stroke: #ff6b6b;
+            stroke-width: 5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 2px currentColor);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.95;
+        }
+
+        .wire-line:hover {
+            stroke-width: 6;
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 4px currentColor);
+            opacity: 1;
+        }
+
+        @keyframes wireAppear {
+            from {
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 1000;
+                opacity: 0;
+            }
+
+            to {
+                stroke-dasharray: 1000;
+                stroke-dashoffset: 0;
+                opacity: 0.95;
+            }
+        }
+
+        /* Control Panel Styles - Compact Design */
+        .control-panel {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 1000;
+        }
+
+        /* Color Picker - Compact */
+        .color-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .color-btn {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.6);
+        }
+
+        .color-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            transform: scale(1.15);
+        }
+
+        .color-btn.active::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+        }
+
+        .color-red {
+            background: #ff6b6b;
+        }
+
+        .color-blue {
+            background: #4dabf7;
+        }
+
+        .color-green {
+            background: #51cf66;
+        }
+
+        .color-yellow {
+            background: #ffd43b;
+        }
+
+        .color-purple {
+            background: #9775fa;
+        }
+
+        /* Divider */
+        .control-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 4px 0;
+        }
+
+        /* Action Buttons - Icon Only */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .undo-btn,
+        .clear-btn {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .undo-btn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .undo-btn:hover:not(:disabled) {
+            transform: scale(1.1);
+            box-shadow: 0 5px 12px rgba(245, 87, 108, 0.6);
+        }
+
+        .undo-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: #555;
+        }
+
+        .clear-btn {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .clear-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 12px rgba(254, 225, 64, 0.6);
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 2000;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            margin-top: 10px;
+            text-align: center;
+            width: 100%;
+            max-width: 1920px;
+        }
+
+        /* Developer Credit */
+        .developer-credit {
+            position: fixed;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            z-index: 999;
+            font-family: Arial, sans-serif;
+        }
+
+        .developer-credit a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .developer-credit a:hover {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (min-width: 768px) {
+            .main-wrapper {
+                justify-content: center;
+            }
+
+            .trainer-container {
+                max-width: 90%;
+            }
+
+            .instructions {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                margin-top: 0;
+                width: auto;
+            }
+        }
+
+        @media (max-width: 767px) {
+            .control-panel {
+                right: 10px;
+                top: auto;
+                bottom: 80px;
+                transform: none;
+            }
+
+            .instructions {
+                font-size: 12px;
+                padding: 10px 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-wrapper">
+        <div class="trainer-container">
+            <img src="emona-hardware.jpg" alt="EMONA Telecoms-Trainer 101" class="board-image">
+            <div class="port-overlay">
+                <!-- Port 1 -->
+                <div class="port" data-port="port-1" style="left: 16%; top: 31%;"></div>
+                <!-- Port 2 -->
+                <div class="port" data-port="port-2" style="left: 16.1%; top: 44.8%;"></div>
+                <!-- Port 3 -->
+                <div class="port" data-port="port-3" style="left: 20%; top: 45%;"></div>
+                <!-- Port 4 -->
+                <div class="port" data-port="port-4" style="left: 24%; top: 17.1%;"></div>
+                <!-- Port 5 -->
+                <div class="port" data-port="port-5" style="left: 24%; top: 20.8%;"></div>
+                <!-- Port 6 -->
+                <div class="port" data-port="port-6" style="left: 24%; top: 24.2%;"></div>
+                <!-- Port 7 -->
+                <div class="port" data-port="port-7" style="left: 24%; top: 27.8%;"></div>
+                <!-- Port 8 -->
+                <div class="port" data-port="port-8" style="left: 28.1%; top: 27.8%;"></div>
+                <!-- Port 9 -->
+                <div class="port" data-port="port-9" style="left: 23.8%; top: 38%;"></div>
+                <!-- Port 10 -->
+                <div class="port" data-port="port-10" style="left: 24%; top: 45.1%;"></div>
+                <!-- Port 11 -->
+                <div class="port" data-port="port-11" style="left: 27.9%; top: 45.1%;"></div>
+                <!-- Port 12 -->
+                <div class="port" data-port="port-12" style="left: 32%; top: 45.1%;"></div>
+                <!-- Port 13 -->
+                <div class="port" data-port="port-13" style="left: 35.9%; top: 45.1%;"></div>
+                <!-- Port 14 -->
+                <div class="port" data-port="port-14" style="left: 36%; top: 31.1%;"></div>
+                <!-- Port 15 -->
+                <div class="port" data-port="port-15" style="left: 40%; top: 17.1%;"></div>
+                <!-- Port 16 -->
+                <div class="port" data-port="port-16" style="left: 44%; top: 17.2%;"></div>
+                <!-- Port 17 -->
+                <div class="port" data-port="port-17" style="left: 40%; top: 24.1%;"></div>
+                <!-- Port 18 -->
+                <div class="port" data-port="port-18" style="left: 40%; top: 31.1%;"></div>
+                <!-- Port 19 -->
+                <div class="port" data-port="port-19" style="left: 40%; top: 38.1%;"></div>
+                <!-- Port 20 -->
+                <div class="port" data-port="port-20" style="left: 39.9%; top: 45.1%;"></div>
+                <!-- Port 21 -->
+                <div class="port" data-port="port-21" style="left: 44%; top: 45.1%;"></div>
+                <!-- Port 22 -->
+                <div class="port" data-port="port-22" style="left: 51.9%; top: 17.1%;"></div>
+                <!-- Port 23 -->
+                <div class="port" data-port="port-23" style="left: 51.9%; top: 20.7%;"></div>
+                <!-- Port 24 -->
+                <div class="port" data-port="port-24" style="left: 51.9%; top: 24.1%;"></div>
+                <!-- Port 25 -->
+                <div class="port" data-port="port-25" style="left: 51.9%; top: 41.6%;"></div>
+                <!-- Port 26 -->
+                <div class="port" data-port="port-26" style="left: 47.9%; top: 41.6%;"></div>
+                <!-- Port 27 -->
+                <div class="port" data-port="port-27" style="left: 56%; top: 34.6%;"></div>
+                <!-- Port 28 -->
+                <div class="port" data-port="port-28" style="left: 56%; top: 41.6%;"></div>
+                <!-- Port 29 -->
+                <div class="port" data-port="port-29" style="left: 59.9%; top: 41.4%;"></div>
+                <!-- Port 30 -->
+                <div class="port" data-port="port-30" style="left: 60%; top: 24.1%;"></div>
+                <!-- Port 31 -->
+                <div class="port" data-port="port-31" style="left: 55.9%; top: 24.1%;"></div>
+                <!-- Port 32 -->
+                <div class="port" data-port="port-32" style="left: 56%; top: 17.2%;"></div>
+                <!-- Port 33 -->
+                <div class="port" data-port="port-33" style="left: 60%; top: 17%;"></div>
+                <!-- Port 34 -->
+                <div class="port" data-port="port-34" style="left: 63.9%; top: 41.6%;"></div>
+                <!-- Port 35 -->
+                <div class="port" data-port="port-35" style="left: 67.9%; top: 41.4%;"></div>
+                <!-- Port 36 -->
+                <div class="port" data-port="port-36" style="left: 71.9%; top: 17.1%;"></div>
+                <!-- Port 37 -->
+                <div class="port" data-port="port-37" style="left: 71.9%; top: 24.1%;"></div>
+                <!-- Port 38 -->
+                <div class="port" data-port="port-38" style="left: 75.9%; top: 24.1%;"></div>
+                <!-- Port 39 -->
+                <div class="port" data-port="port-39" style="left: 75.9%; top: 31%;"></div>
+                <!-- Port 40 -->
+                <div class="port" data-port="port-40" style="left: 71.9%; top: 30.9%;"></div>
+                <!-- Port 41 -->
+                <div class="port" data-port="port-41" style="left: 71.9%; top: 37.8%;"></div>
+                <!-- Port 42 -->
+                <div class="port" data-port="port-42" style="left: 75.9%; top: 37.9%;"></div>
+                <!-- Port 43 -->
+                <div class="port" data-port="port-43" style="left: 75.9%; top: 44.9%;"></div>
+                <!-- Port 44 -->
+                <div class="port" data-port="port-44" style="left: 71.9%; top: 44.9%;"></div>
+                <!-- Port 45 -->
+                <div class="port" data-port="port-45" style="left: 79.9%; top: 44.9%;"></div>
+                <!-- Port 46 -->
+                <div class="port" data-port="port-46" style="left: 84%; top: 44.8%;"></div>
+                <!-- Port 47 -->
+                <div class="port" data-port="port-47" style="left: 83.9%; top: 17.1%;"></div>
+                <!-- Port 48 -->
+                <div class="port" data-port="port-48" style="left: 30%; top: 51.3%;"></div>
+                <!-- Port 49 -->
+                <div class="port" data-port="port-49" style="left: 61.9%; top: 51%;"></div>
+                <!-- Port 50 -->
+                <div class="port" data-port="port-50" style="left: 20%; top: 60.2%;"></div>
+                <!-- Port 51 -->
+                <div class="port" data-port="port-51" style="left: 20%; top: 63.9%;"></div>
+                <!-- Port 52 -->
+                <div class="port" data-port="port-52" style="left: 20%; top: 67.3%;"></div>
+                <!-- Port 53 -->
+                <div class="port" data-port="port-53" style="left: 20%; top: 81%;"></div>
+                <!-- Port 54 -->
+                <div class="port" data-port="port-54" style="left: 16%; top: 87.8%;"></div>
+                <!-- Port 55 -->
+                <div class="port" data-port="port-55" style="left: 16%; top: 91.3%;"></div>
+                <!-- Port 56 -->
+                <div class="port" data-port="port-56" style="left: 20.1%; top: 91.2%;"></div>
+                <!-- Port 57 -->
+                <div class="port" data-port="port-57" style="left: 24%; top: 87.8%;"></div>
+                <!-- Port 58 -->
+                <div class="port" data-port="port-58" style="left: 28%; top: 87.7%;"></div>
+                <!-- Port 59 -->
+                <div class="port" data-port="port-59" style="left: 28%; top: 60.3%;"></div>
+                <!-- Port 60 -->
+                <div class="port" data-port="port-60" style="left: 36%; top: 63.9%;"></div>
+                <!-- Port 61 -->
+                <div class="port" data-port="port-61" style="left: 36%; top: 70.5%;"></div>
+                <!-- Port 62 -->
+                <div class="port" data-port="port-62" style="left: 36%; top: 74.1%;"></div>
+                <!-- Port 63 -->
+                <div class="port" data-port="port-63" style="left: 36%; top: 77.5%;"></div>
+                <!-- Port 64 -->
+                <div class="port" data-port="port-64" style="left: 32%; top: 77.5%;"></div>
+                <!-- Port 65 -->
+                <div class="port" data-port="port-65" style="left: 31.9%; top: 91.3%;"></div>
+                <!-- Port 66 -->
+                <div class="port" data-port="port-66" style="left: 35.9%; top: 91.4%;"></div>
+                <!-- Port 67 -->
+                <div class="port" data-port="port-67" style="left: 39.9%; top: 74.1%;"></div>
+                <!-- Port 68 -->
+                <div class="port" data-port="port-68" style="left: 39.9%; top: 81.1%;"></div>
+                <!-- Port 69 -->
+                <div class="port" data-port="port-69" style="left: 39.9%; top: 87.9%;"></div>
+                <!-- Port 70 -->
+                <div class="port" data-port="port-70" style="left: 44%; top: 87.8%;"></div>
+                <!-- Port 71 -->
+                <div class="port" data-port="port-71" style="left: 43.9%; top: 74%;"></div>
+                <!-- Port 72 -->
+                <div class="port" data-port="port-72" style="left: 51.8%; top: 74.1%;"></div>
+                <!-- Port 73 -->
+                <div class="port" data-port="port-73" style="left: 51.9%; top: 77.5%;"></div>
+                <!-- Port 74 -->
+                <div class="port" data-port="port-74" style="left: 51.9%; top: 81%;"></div>
+                <!-- Port 75 -->
+                <div class="port" data-port="port-75" style="left: 51.9%; top: 84.2%;"></div>
+                <!-- Port 76 -->
+                <div class="port" data-port="port-76" style="left: 51.9%; top: 88%;"></div>
+                <!-- Port 77 -->
+                <div class="port" data-port="port-77" style="left: 51.9%; top: 91.3%;"></div>
+                <!-- Port 78 -->
+                <div class="port" data-port="port-78" style="left: 56%; top: 63.6%;"></div>
+                <!-- Port 79 -->
+                <div class="port" data-port="port-79" style="left: 55.9%; top: 70.5%;"></div>
+                <!-- Port 80 -->
+                <div class="port" data-port="port-80" style="left: 59.9%; top: 70.4%;"></div>
+                <!-- Port 81 -->
+                <div class="port" data-port="port-81" style="left: 55.9%; top: 84.4%;"></div>
+                <!-- Port 82 -->
+                <div class="port" data-port="port-82" style="left: 55.9%; top: 91.4%;"></div>
+                <!-- Port 83 -->
+                <div class="port" data-port="port-83" style="left: 60%; top: 91.4%;"></div>
+                <!-- Port 84 -->
+                <div class="port" data-port="port-84" style="left: 59.9%; top: 84.3%;"></div>
+                <!-- Port 85 -->
+                <div class="port" data-port="port-85" style="left: 63.9%; top: 73.8%;"></div>
+                <!-- Port 86 -->
+                <div class="port" data-port="port-86" style="left: 63.9%; top: 80.9%;"></div>
+                <!-- Port 87 -->
+                <div class="port" data-port="port-87" style="left: 63.9%; top: 87.8%;"></div>
+                <!-- Port 88 -->
+                <div class="port" data-port="port-88" style="left: 67.9%; top: 80.9%;"></div>
+                <!-- Port 89 -->
+                <div class="port" data-port="port-89" style="left: 68%; top: 87.8%;"></div>
+            </div>
+            <svg class="wire-canvas" id="wireCanvas"></svg>
+        </div>
+
+        <!-- Compact Control Panel -->
+        <div class="control-panel">
+            <div class="color-picker">
+                <button class="color-btn color-red active" data-color="#ff6b6b" title="Red"></button>
+                <button class="color-btn color-blue" data-color="#4dabf7" title="Blue"></button>
+                <button class="color-btn color-green" data-color="#51cf66" title="Green"></button>
+                <button class="color-btn color-yellow" data-color="#ffd43b" title="Yellow"></button>
+                <button class="color-btn color-purple" data-color="#9775fa" title="Purple"></button>
+            </div>
+            <div class="control-divider"></div>
+            <div class="action-buttons">
+                <button class="undo-btn" id="undoBtn" disabled title="Undo Last Wire">↩️</button>
+                <button class="clear-btn" id="clearBtn" title="Clear All">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Developer Credit -->
+    <div class="developer-credit">
+        Developed by <a href="https://www.facebook.com/hossamalaa8/" target="_blank" rel="noopener noreferrer">Hossam
+            Alaa</a>
+    </div>
+
+    <script>
+        // State variables
+        let selectedPort = null;
+        let connections = [];
+        let wireHistory = []; // For undo functionality
+        let currentWireColor = localStorage.getItem('wireColor') || '#ff6b6b';
+
+        // DOM elements
+        const ports = document.querySelectorAll('.port');
+        const wireCanvas = document.getElementById('wireCanvas');
+        const container = document.querySelector('.trainer-container');
+        const colorBtns = document.querySelectorAll('.color-btn');
+        const undoBtn = document.getElementById('undoBtn');
+        const clearBtn = document.getElementById('clearBtn');
+
+        // Initialize color picker
+        function initColorPicker() {
+            // First remove all active classes from HTML
+            colorBtns.forEach(btn => btn.classList.remove('active'));
+
+            // Then add active to the saved color
+            colorBtns.forEach(btn => {
+                if (btn.dataset.color === currentWireColor) {
+                    btn.classList.add('active');
+                }
+
+                btn.addEventListener('click', function () {
+                    colorBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentWireColor = this.dataset.color;
+                    localStorage.setItem('wireColor', currentWireColor);
+                });
+            });
+        }
+
+        // Port click handler
+        ports.forEach(port => {
+            port.addEventListener('click', function (e) {
+                e.stopPropagation();
+
+                if (!selectedPort) {
+                    selectedPort = this;
+                    this.classList.add('selected');
+                } else if (selectedPort === this) {
+                    this.classList.remove('selected');
+                    selectedPort = null;
+                } else {
+                    const path = createWire(selectedPort, this, currentWireColor);
+                    selectedPort.classList.remove('selected');
+                    selectedPort.classList.add('connected');
+                    this.classList.add('connected');
+
+                    // Store connection with color and SVG element
+                    const connection = {
+                        port1: selectedPort,
+                        port2: this,
+                        color: currentWireColor,
+                        path: path
+                    };
+
+                    connections.push(connection);
+                    wireHistory.push(connection);
+
+                    updateUndoButton();
+                    selectedPort = null;
+                }
+            });
+        });
+
+        // Create wire with specified color
+        function createWire(port1, port2, color) {
+            const rect1 = port1.getBoundingClientRect();
+            const rect2 = port2.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            const x1 = rect1.left - containerRect.left + rect1.width / 2;
+            const y1 = rect1.top - containerRect.top + rect1.height / 2;
+            const x2 = rect2.left - containerRect.left + rect2.width / 2;
+            const y2 = rect2.top - containerRect.top + rect2.height / 2;
+
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            const curve = Math.min(distance * 0.3, 100);
+
+
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            const pathData = `M ${x1} ${y1} Q ${midX} ${midY - curve} ${x2} ${y2}`;
+
+            path.setAttribute('d', pathData);
+            path.setAttribute('class', 'wire-line');
+            path.style.stroke = color;
+            path.style.cursor = 'pointer';
+
+            // Add appearance animation
+            path.style.animation = 'wireAppear 0.5s ease-out forwards';
+
+            path.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (confirm('Remove this connection?')) {
+                    removeWire(path, port1, port2);
+                }
+            });
+
+
+            wireCanvas.appendChild(path);
+            return path;
+        }
+
+        // Remove specific wire
+        function removeWire(path, port1, port2) {
+            wireCanvas.removeChild(path);
+
+            // Remove from history
+            wireHistory = wireHistory.filter(conn => conn.path !== path);
+
+            // Remove from connections
+            connections = connections.filter(c =>
+                !(c.port1 === port1 && c.port2 === port2)
+            );
+
+            // Check if ports still have connections
+            const port1HasConnections = connections.some(c => c.port1 === port1 || c.port2 === port1);
+            const port2HasConnections = connections.some(c => c.port1 === port2 || c.port2 === port2);
+
+            if (!port1HasConnections) port1.classList.remove('connected');
+            if (!port2HasConnections) port2.classList.remove('connected');
+
+            updateUndoButton();
+        }
+
+        // Undo last connection
+        function undoLastConnection() {
+            if (wireHistory.length === 0) return;
+
+            const lastConnection = wireHistory.pop();
+            wireCanvas.removeChild(lastConnection.path);
+
+            connections = connections.filter(c => c.path !== lastConnection.path);
+
+            // Check if ports still have connections
+            const port1HasConnections = connections.some(c =>
+                c.port1 === lastConnection.port1 || c.port2 === lastConnection.port1
+            );
+            const port2HasConnections = connections.some(c =>
+                c.port1 === lastConnection.port2 || c.port2 === lastConnection.port2
+            );
+
+            if (!port1HasConnections) lastConnection.port1.classList.remove('connected');
+            if (!port2HasConnections) lastConnection.port2.classList.remove('connected');
+
+            updateUndoButton();
+        }
+
+        // Clear all connections
+        function clearAllConnections() {
+            if (connections.length === 0) return;
+
+            if (confirm('Clear all connections?')) {
+                wireCanvas.innerHTML = '';
+                ports.forEach(port => {
+                    port.classList.remove('connected', 'selected');
+                });
+                connections = [];
+                wireHistory = [];
+                selectedPort = null;
+                updateUndoButton();
+            }
+        }
+
+        // Update undo button state
+        function updateUndoButton() {
+            undoBtn.disabled = wireHistory.length === 0;
+        }
+
+        // Event listeners
+        undoBtn.addEventListener('click', undoLastConnection);
+        clearBtn.addEventListener('click', clearAllConnections);
+
+        // ESC key to cancel selection
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && selectedPort) {
+                selectedPort.classList.remove('selected');
+                selectedPort = null;
+            }
+        });
+
+        // Window resize handler - redraw all wires
+        window.addEventListener('resize', function () {
+            wireCanvas.innerHTML = '';
+            const tempConnections = [...connections];
+            connections = [];
+            wireHistory = [];
+
+            tempConnections.forEach(conn => {
+                const path = createWire(conn.port1, conn.port2, conn.color);
+                connections.push({
+                    port1: conn.port1,
+                    port2: conn.port2,
+                    color: conn.color,
+                    path: path
+                });
+                wireHistory.push(connections[connections.length - 1]);
+            });
+
+            updateUndoButton();
+        });
+
+        // Initialize
+        initColorPicker();
+        updateUndoButton();
+
+        // Auto-hide instructions after 10 seconds
+        setTimeout(() => {
+            const instructions = document.querySelector('.instructions');
+            instructions.style.transition = 'opacity 1s';
+            instructions.style.opacity = '0';
+            setTimeout(() => instructions.remove(), 1000);
+        }, 10000);
+    </script>
+</body>
+
+</html>
