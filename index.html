@@ -163,19 +163,6 @@
             opacity: 1;
         }
 
-        @keyframes wireAppear {
-            from {
-                stroke-dasharray: 1000;
-                stroke-dashoffset: 1000;
-                opacity: 0;
-            }
-
-            to {
-                stroke-dasharray: 1000;
-                stroke-dashoffset: 0;
-                opacity: 0.95;
-            }
-        }
 
         /* Control Panel Styles - Compact Design */
         .control-panel {
@@ -687,8 +674,18 @@
             path.style.stroke = color;
             path.style.cursor = 'pointer';
 
-            // Add appearance animation
-            path.style.animation = 'wireAppear 0.5s ease-out forwards';
+            // Add appearance animation using actual path length
+            const pathLength = path.getTotalLength();
+            path.style.strokeDasharray = pathLength;
+            path.style.strokeDashoffset = pathLength;
+            path.style.opacity = '0';
+            
+            // Animate the path drawing
+            setTimeout(() => {
+                path.style.transition = 'stroke-dashoffset 0.5s ease-out, opacity 0.5s ease-out';
+                path.style.strokeDashoffset = '0';
+                path.style.opacity = '0.95';
+            }, 10);
 
             path.addEventListener('click', function (e) {
                 e.stopPropagation();
